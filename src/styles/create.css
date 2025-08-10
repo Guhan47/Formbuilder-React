@@ -1,0 +1,38 @@
+/* styles.css */
+@media (max-width: 400px) {
+    body{
+        background-color: rgb(48, 51, 52);
+    }
+    .form-builder-header .typography{
+        font-size: 1rem;
+
+
+    }
+    .form-builder-container {
+      height: auto;
+      padding: 8px;
+      background-color: red;
+    }
+    .form-builder-title {
+      font-size: 12px;
+      color: #fff;
+      letter-spacing: 0;
+    }
+    .form-builder-buttons {
+      flex-direction: column;
+      gap: 8px;
+    }
+    .form-builder-buttons button {
+      width: 100%;
+      min-width: unset;
+    }
+    .form-field-card {
+      width: 100%;
+      min-width: unset;
+    }
+    .save-success-bar {
+      font-size: 0.9rem;
+      padding: 4px;
+    }
+  }
+  

@@ -1,26 +1,21 @@
-import { useSelector, useDispatch } from "react-redux";
-import type { RootState } from "../store/store";
-import { useNavigate } from "react-router-dom";
-import {
-  Paper,
-  Typography,
-  List,
-  ListItemButton,
-  ListItemText,
-  Box,
-  Divider,
-} from "@mui/material";
-import { reorderFields } from "../store/formslice";
+"use client"
+
+import { useSelector, useDispatch } from "react-redux"
+import type { RootState } from "../store/store"
+import { useNavigate } from "react-router-dom"
+import { Paper, Typography, List, ListItemButton, ListItemText, Box, Divider, Chip, Stack } from "@mui/material"
+import { loadForm } from "../store/formslice"
 
 export default function Myforms() {
-  const forms = useSelector((state: RootState) => state.form.savedForms);
-  const dispatch = useDispatch();
-  const navigate = useNavigate();
+  const forms = useSelector((state: RootState) => state.form.savedForms)
+  const dispatch = useDispatch()
+  const navigate = useNavigate()
 
   const openForm = (form: any) => {
-    dispatch(reorderFields(form.fields));
-    navigate("/preview");
-  };
+    // Load the form into current form state
+    dispatch(loadForm({ name: form.name, fields: form.fields }))
+    navigate("/preview")
+  }
 
   return (
     <Box
@@ -58,7 +53,6 @@ export default function Myforms() {
         >
           Your Saved Forms
         </Typography>
-
         <Typography
           variant="body1"
           sx={{
@@ -68,8 +62,9 @@ export default function Myforms() {
             textAlign: "center",
             color: "#ccc",
           }}
-        ></Typography>
-
+        >
+          Click on any form to preview and manage your saved forms
+        </Typography>
         <Paper
           elevation={8}
           sx={{
@@ -96,7 +91,7 @@ export default function Myforms() {
               </Typography>
             ) : (
               forms.map((form, idx) => (
-                <Box key={idx}>
+                <Box key={form.id}>
                   <ListItemButton
                     onClick={() => openForm(form)}
                     sx={{
@@ -111,23 +106,62 @@ export default function Myforms() {
                   >
                     <ListItemText
                       primary={
-                        <Typography
-                          variant="h6"
-                          sx={{ fontWeight: 600, color: "#bb86fc" }}
-                        >
-                          {form.name}
-                        </Typography>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 1 }}>
+                          <Typography variant="h6" sx={{ fontWeight: 600, color: "#bb86fc" }}>
+                            {form.name}
+                          </Typography>
+                          <Chip
+                            label={`${form.fields.length} fields`}
+                            size="small"
+                            sx={{
+                              bgcolor: "rgba(187, 134, 252, 0.2)",
+                              color: "#bb86fc",
+                              fontSize: "0.7rem",
+                            }}
+                          />
+                        </Box>
                       }
                       secondary={
-                        <Typography variant="body2" sx={{ color: "#999" }}>
-                          Created on {new Date(form.createdAt).toLocaleString()}
-                        </Typography>
+                        <Stack spacing={1}>
+                          <Typography variant="body2" sx={{ color: "#999" }}>
+                            Created on {new Date(form.createdAt).toLocaleString()}
+                          </Typography>
+                          {form.fields.length > 0 && (
+                            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                              {form.fields.slice(0, 3).map((field, fieldIdx) => (
+                                <Chip
+                                  key={fieldIdx}
+                                  label={field.label || field.type}
+                                  size="small"
+                                  variant="outlined"
+                                  sx={{
+                                    fontSize: "0.6rem",
+                                    height: "20px",
+                                    color: "#ccc",
+                                    borderColor: "#555",
+                                  }}
+                                />
+                              ))}
+                              {form.fields.length > 3 && (
+                                <Chip
+                                  label={`+${form.fields.length - 3} more`}
+                                  size="small"
+                                  variant="outlined"
+                                  sx={{
+                                    fontSize: "0.6rem",
+                                    height: "20px",
+                                    color: "#999",
+                                    borderColor: "#555",
+                                  }}
+                                />
+                              )}
+                            </Box>
+                          )}
+                        </Stack>
                       }
                     />
                   </ListItemButton>
-                  {idx < forms.length - 1 && (
-                    <Divider sx={{ borderColor: "#333", my: 1 }} />
-                  )}
+                  {idx < forms.length - 1 && <Divider sx={{ borderColor: "#333", my: 1 }} />}
                 </Box>
               ))
             )}
@@ -135,5 +169,5 @@ export default function Myforms() {
         </Paper>
       </Box>
     </Box>
-  );
+  )
 }

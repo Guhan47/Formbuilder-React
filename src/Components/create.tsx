@@ -1,9 +1,7 @@
-"use client";
-
-import { useState } from "react";
-import "../styles/create.css";
-
-import { useDispatch, useSelector } from "react-redux";
+"use client"
+import { useState } from "react"
+import "../styles/create.css"
+import { useDispatch, useSelector } from "react-redux"
 import {
   TextField,
   Button,
@@ -22,82 +20,185 @@ import {
   Select,
   InputLabel,
   FormControl,
-} from "@mui/material";
-import DeleteIcon from "@mui/icons-material/Delete";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import type { RootState } from "../store/store";
-import { addField, deleteField, saveForm } from "../store/formslice";
-import { v4 as uuidv4 } from "uuid";
+  Tabs,
+  Tab,
+  Switch,
+  Chip,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  FormGroup,
+} from "@mui/material"
+import DeleteIcon from "@mui/icons-material/Delete"
+import CheckCircleIcon from "@mui/icons-material/CheckCircle"
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
+import type { RootState } from "../store/store"
+import { addField, deleteField, saveForm } from "../store/formslice"
+import { v4 as uuidv4 } from "uuid"
 
-const fieldTypes = [
-  "text",
-  "number",
-  "textarea",
-  "select",
-  "radio",
-  "checkbox",
-  "date",
-] as const;
+const fieldTypes = ["text", "number", "textarea", "select", "radio", "checkbox", "date", "email", "password"] as const
 
-type FieldType = (typeof fieldTypes)[number];
+type FieldType = (typeof fieldTypes)[number]
+
+interface ValidationRule {
+  id: string
+  type: "required" | "minLength" | "maxLength" | "email" | "password" | "custom"
+  value?: string | number
+  message?: string
+}
+
+interface DerivedField {
+  enabled: boolean
+  parentFields: string[]
+  formula: string
+  computationType: "age" | "sum" | "concat" | "custom"
+}
 
 interface Field {
-  id: string;
-  type: FieldType;
-  label: string;
-  required: boolean;
-  defaultValue: string;
-  validations: Record<string, any>;
-  options: string[];
-  derived: null | any;
+  id: string
+  type: FieldType
+  label: string
+  required: boolean
+  defaultValue: string
+  validations: ValidationRule[]
+  options: string[]
+  derived: DerivedField
 }
 
 export default function Create() {
-  const dispatch = useDispatch();
-  const fields = useSelector(
-    (state: RootState) => state.form.currentForm.fields
-  );
-  const [open, setOpen] = useState(false);
-  const [formNameDialog, setFormNameDialog] = useState(false);
-  const [formName, setFormName] = useState("");
-  const [showSaveSuccess, setShowSaveSuccess] = useState(false);
-
+  const dispatch = useDispatch()
+  const fields = useSelector((state: RootState) => state.form.currentForm.fields)
+  const [open, setOpen] = useState(false)
+  const [formNameDialog, setFormNameDialog] = useState(false)
+  const [formName, setFormName] = useState("")
+  const [showSaveSuccess, setShowSaveSuccess] = useState(false)
+  const [tabValue, setTabValue] = useState(0)
   const [newField, setNewField] = useState<Field>({
     id: "",
     type: "text",
     label: "",
     required: false,
     defaultValue: "",
-    validations: {},
+    validations: [],
     options: [],
-    derived: null,
-  });
+    derived: {
+      enabled: false,
+      parentFields: [],
+      formula: "",
+      computationType: "custom",
+    },
+  })
 
   const handleAddField = () => {
-    dispatch(addField({ ...newField, id: uuidv4() }));
+    dispatch(addField({ ...newField, id: uuidv4() }))
     setNewField({
       id: "",
       type: "text",
       label: "",
       required: false,
       defaultValue: "",
-      validations: {},
+      validations: [],
       options: [],
-      derived: null,
-    });
-    setOpen(false);
-  };
+      derived: {
+        enabled: false,
+        parentFields: [],
+        formula: "",
+        computationType: "custom",
+      },
+    })
+    setOpen(false)
+    setTabValue(0)
+  }
 
   const handleSaveForm = () => {
-    dispatch(saveForm(formName));
-    setFormName("");
-    setFormNameDialog(false);
-    setShowSaveSuccess(true);
-
+    dispatch(saveForm(formName))
+    setFormName("")
+    setFormNameDialog(false)
+    setShowSaveSuccess(true)
     setTimeout(() => {
-      setShowSaveSuccess(false);
-    }, 3000);
-  };
+      setShowSaveSuccess(false)
+    }, 3000)
+  }
+
+  const addValidationRule = (type: ValidationRule["type"]) => {
+    const newRule: ValidationRule = {
+      id: uuidv4(),
+      type,
+      value: type === "password" ? 8 : type === "minLength" ? 1 : type === "maxLength" ? 100 : "",
+      message: getDefaultValidationMessage(type),
+    }
+    setNewField({
+      ...newField,
+      validations: [...newField.validations, newRule],
+    })
+  }
+
+  const removeValidationRule = (ruleId: string) => {
+    setNewField({
+      ...newField,
+      validations: newField.validations.filter((rule) => rule.id !== ruleId),
+    })
+  }
+
+  const updateValidationRule = (ruleId: string, updates: Partial<ValidationRule>) => {
+    setNewField({
+      ...newField,
+      validations: newField.validations.map((rule) => (rule.id === ruleId ? { ...rule, ...updates } : rule)),
+    })
+  }
+
+  const getDefaultValidationMessage = (type: ValidationRule["type"]): string => {
+    switch (type) {
+      case "required":
+        return "This field is required"
+      case "minLength":
+        return "Minimum length not met"
+      case "maxLength":
+        return "Maximum length exceeded"
+      case "email":
+        return "Please enter a valid email address"
+      case "password":
+        return "Password must be at least 8 characters and contain a number"
+      case "custom":
+        return "Custom validation failed"
+      default:
+        return "Validation failed"
+    }
+  }
+
+  const toggleParentField = (fieldId: string) => {
+    const isSelected = newField.derived.parentFields.includes(fieldId)
+    setNewField({
+      ...newField,
+      derived: {
+        ...newField.derived,
+        parentFields: isSelected
+          ? newField.derived.parentFields.filter((id) => id !== fieldId)
+          : [...newField.derived.parentFields, fieldId],
+      },
+    })
+  }
+
+  const getFormulaPlaceholder = () => {
+    switch (newField.derived.computationType) {
+      case "age":
+        return "Automatically calculates age from selected date of birth field"
+      case "sum":
+        return "parentField1 + parentField2"
+      case "concat":
+        return 'parentField1 + " " + parentField2'
+      default:
+        return "Enter custom formula using parentField1, parentField2, etc."
+    }
+  }
+
+  // Filter fields for age computation - only show date fields
+  const getAvailableParentFields = () => {
+    if (newField.derived.computationType === "age") {
+      return fields.filter((field) => field.type === "date")
+    }
+    return fields
+  }
 
   return (
     <Box
@@ -139,7 +240,6 @@ export default function Create() {
         >
           DYNAMIC FORM BUILDER UPLIANCE.AI{" "}
         </Typography>
-
         <Stack
           direction={{ xs: "column", sm: "row" }}
           spacing={2}
@@ -165,7 +265,6 @@ export default function Create() {
           </Button>
         </Stack>
       </Box>
-
 
       <Box
         sx={{
@@ -210,11 +309,7 @@ export default function Create() {
             }}
           >
             <Box>
-              <Typography
-                variant="h5"
-                color="text.secondary"
-                sx={{ mb: 2, fontWeight: 500 }}
-              >
+              <Typography variant="h5" color="text.secondary" sx={{ mb: 2, fontWeight: 500 }}>
                 No fields added yet
               </Typography>
               <Typography variant="body1" color="text.secondary">
@@ -224,13 +319,9 @@ export default function Create() {
           </Box>
         ) : (
           <Box sx={{ flex: 1, overflow: "auto", p: 3 }}>
-            <Typography
-              variant="h6"
-              sx={{ mb: 2, fontWeight: 600, color: "text.primary" }}
-            >
+            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: "text.primary" }}>
               Form Fields ({fields.length})
             </Typography>
-
             <Box
               sx={{
                 display: "flex",
@@ -257,7 +348,7 @@ export default function Create() {
                     sx={{
                       p: 2,
                       borderRadius: 2,
-                      height: 140,
+                      height: 180,
                       display: "flex",
                       flexDirection: "column",
                       transition: "all 0.2s ease",
@@ -290,7 +381,6 @@ export default function Create() {
                         >
                           {field.label || "(No label)"}
                         </Typography>
-
                         <Box
                           sx={{
                             display: "flex",
@@ -299,39 +389,12 @@ export default function Create() {
                             mb: 1,
                           }}
                         >
-                          <Typography
-                            variant="caption"
-                            sx={{
-                              textTransform: "capitalize",
-                              fontWeight: 500,
-                              bgcolor: "primary.light",
-                              color: "primary.contrastText",
-                              px: 1,
-                              py: 0.25,
-                              borderRadius: 0.5,
-                              fontSize: "0.7rem",
-                            }}
-                          >
-                            {field.type}
-                          </Typography>
-                          {field.required && (
-                            <Typography
-                              variant="caption"
-                              sx={{
-                                color: "error.main",
-                                fontWeight: 500,
-                                bgcolor: "error.light",
-                                px: 1,
-                                py: 0.25,
-                                borderRadius: 0.5,
-                                fontSize: "0.7rem",
-                              }}
-                            >
-                              Required
-                            </Typography>
+                          <Chip label={field.type} size="small" color="primary" variant="outlined" />
+                          {field.required && <Chip label="Required" size="small" color="error" variant="outlined" />}
+                          {field.derived?.enabled && (
+                            <Chip label="Derived" size="small" color="secondary" variant="outlined" />
                           )}
                         </Box>
-
                         {field.defaultValue && (
                           <Typography
                             variant="caption"
@@ -341,13 +404,23 @@ export default function Create() {
                               overflow: "hidden",
                               textOverflow: "ellipsis",
                               whiteSpace: "nowrap",
+                              mb: 0.5,
                             }}
                           >
                             Default: {field.defaultValue}
                           </Typography>
                         )}
+                        {field.validations?.length > 0 && (
+                          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.5 }}>
+                            Validations: {field.validations.length} rule(s)
+                          </Typography>
+                        )}
+                        {field.derived?.enabled && field.derived.parentFields.length > 0 && (
+                          <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                            Parents: {field.derived.parentFields.length} field(s)
+                          </Typography>
+                        )}
                       </Box>
-
                       <IconButton
                         color="error"
                         size="small"
@@ -375,71 +448,315 @@ export default function Create() {
       <Dialog
         open={open}
         onClose={() => setOpen(false)}
-        maxWidth="sm"
+        maxWidth="md"
         fullWidth
+        PaperProps={{
+          sx: { maxHeight: "90vh" },
+        }}
       >
         <DialogTitle>
           <Typography variant="h6" fontWeight={600}>
             Add New Field
           </Typography>
         </DialogTitle>
-        <DialogContent>
-          <Stack spacing={2} sx={{ mt: 1 }}>
-            <FormControl fullWidth size="small">
-              <InputLabel>Field Type</InputLabel>
-              <Select
-                value={newField.type}
-                label="Field Type"
-                onChange={(e) =>
-                  setNewField({
-                    ...newField,
-                    type: e.target.value as FieldType,
-                  })
-                }
-              >
-                {fieldTypes.map((type) => (
-                  <MenuItem key={type} value={type}>
-                    {type.charAt(0).toUpperCase() + type.slice(1)}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+        <DialogContent sx={{ p: 0 }}>
+          <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
+            <Tabs value={tabValue} onChange={(_, newValue) => setTabValue(newValue)}>
+              <Tab label="Basic" />
+              <Tab label="Validation" />
+              <Tab label="Derived" />
+            </Tabs>
+          </Box>
 
-            <TextField
-              label="Field Label"
-              fullWidth
-              size="small"
-              value={newField.label}
-              onChange={(e) =>
-                setNewField({ ...newField, label: e.target.value })
-              }
-              placeholder="Enter field label"
-            />
+          {/* Basic Tab */}
+          {tabValue === 0 && (
+            <Box sx={{ p: 3 }}>
+              <Stack spacing={3}>
+                <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Field Type</InputLabel>
+                    <Select
+                      value={newField.type}
+                      label="Field Type"
+                      onChange={(e) =>
+                        setNewField({
+                          ...newField,
+                          type: e.target.value as FieldType,
+                        })
+                      }
+                    >
+                      {fieldTypes.map((type) => (
+                        <MenuItem key={type} value={type}>
+                          {type.charAt(0).toUpperCase() + type.slice(1)}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
 
-            <FormControlLabel
-              control={
-                <Checkbox
+                  <TextField
+                    label="Field Label"
+                    fullWidth
+                    size="small"
+                    value={newField.label}
+                    onChange={(e) => setNewField({ ...newField, label: e.target.value })}
+                    placeholder="Enter field label"
+                  />
+                </Box>
+
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      size="small"
+                      checked={newField.required}
+                      onChange={(e) => setNewField({ ...newField, required: e.target.checked })}
+                    />
+                  }
+                  label="Required field"
+                />
+
+                <TextField
+                  label="Default Value"
+                  fullWidth
                   size="small"
-                  checked={newField.required}
-                  onChange={(e) =>
-                    setNewField({ ...newField, required: e.target.checked })
+                  value={newField.defaultValue}
+                  onChange={(e) => setNewField({ ...newField, defaultValue: e.target.value })}
+                  placeholder={newField.type === "date" ? "YYYY-MM-DD" : "Enter default value"}
+                  helperText={
+                    newField.type === "date" ? "For date fields, use format: YYYY-MM-DD (e.g., 1990-01-15)" : ""
                   }
                 />
-              }
-              label="Required field"
-            />
 
-            <TextField
-              label="Default Value"
-              fullWidth
-              size="small"
-              value={newField.defaultValue}
-              onChange={(e) =>
-                setNewField({ ...newField, defaultValue: e.target.value })
-              }
-              placeholder="Enter default value"
-            />
-          </Stack>
+                {(newField.type === "select" || newField.type === "radio") && (
+                  <TextField
+                    label="Options (one per line)"
+                    fullWidth
+                    multiline
+                    rows={4}
+                    value={newField.options.join("\n")}
+                    onChange={(e) =>
+                      setNewField({
+                        ...newField,
+                        options: e.target.value.split("\n").filter(Boolean),
+                      })
+                    }
+                    placeholder="Option 1&#10;Option 2&#10;Option 3"
+                  />
+                )}
+              </Stack>
+            </Box>
+          )}
+
+          {/* Validation Tab */}
+          {tabValue === 1 && (
+            <Box sx={{ p: 3 }}>
+              <Stack spacing={3}>
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <Typography variant="h6">Validation Rules</Typography>
+                  <FormControl size="small" sx={{ minWidth: 200 }}>
+                    <InputLabel>Add Validation</InputLabel>
+                    <Select
+                      value=""
+                      label="Add Validation"
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          addValidationRule(e.target.value as ValidationRule["type"])
+                        }
+                      }}
+                    >
+                      <MenuItem value="required">Required</MenuItem>
+                      <MenuItem value="minLength">Min Length</MenuItem>
+                      <MenuItem value="maxLength">Max Length</MenuItem>
+                      <MenuItem value="email">Email Format</MenuItem>
+                      <MenuItem value="password">Password Rules</MenuItem>
+                      <MenuItem value="custom">Custom Rule</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Box>
+
+                {newField.validations.length === 0 ? (
+                  <Typography color="text.secondary" textAlign="center" sx={{ py: 4 }}>
+                    No validation rules added yet. Use the dropdown above to add rules.
+                  </Typography>
+                ) : (
+                  <Stack spacing={2}>
+                    {newField.validations.map((rule) => (
+                      <Accordion key={rule.id}>
+                        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                            <Chip
+                              label={rule.type.charAt(0).toUpperCase() + rule.type.slice(1)}
+                              size="small"
+                              color="primary"
+                            />
+                            <IconButton
+                              size="small"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                removeValidationRule(rule.id)
+                              }}
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Box>
+                        </AccordionSummary>
+                        <AccordionDetails>
+                          <Stack spacing={2}>
+                            {(rule.type === "minLength" || rule.type === "maxLength" || rule.type === "password") && (
+                              <TextField
+                                label={rule.type === "password" ? "Minimum Length" : "Length"}
+                                type="number"
+                                size="small"
+                                value={rule.value || ""}
+                                onChange={(e) =>
+                                  updateValidationRule(rule.id, { value: Number.parseInt(e.target.value) || 0 })
+                                }
+                                placeholder={rule.type === "password" ? "8" : "0"}
+                              />
+                            )}
+
+                            {rule.type === "custom" && (
+                              <TextField
+                                label="Custom Rule (RegEx)"
+                                size="small"
+                                value={rule.value || ""}
+                                onChange={(e) => updateValidationRule(rule.id, { value: e.target.value })}
+                                placeholder="^[a-zA-Z0-9]+$"
+                              />
+                            )}
+
+                            <TextField
+                              label="Error Message"
+                              size="small"
+                              value={rule.message || ""}
+                              onChange={(e) => updateValidationRule(rule.id, { message: e.target.value })}
+                              placeholder="Enter error message"
+                            />
+                          </Stack>
+                        </AccordionDetails>
+                      </Accordion>
+                    ))}
+                  </Stack>
+                )}
+              </Stack>
+            </Box>
+          )}
+
+          {/* Derived Tab */}
+          {tabValue === 2 && (
+            <Box sx={{ p: 3 }}>
+              <Stack spacing={3}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={newField.derived.enabled}
+                      onChange={(e) =>
+                        setNewField({
+                          ...newField,
+                          derived: { ...newField.derived, enabled: e.target.checked },
+                        })
+                      }
+                    />
+                  }
+                  label="Enable Derived Field"
+                />
+
+                {newField.derived.enabled && (
+                  <>
+                    <FormControl fullWidth size="small">
+                      <InputLabel>Computation Type</InputLabel>
+                      <Select
+                        value={newField.derived.computationType}
+                        label="Computation Type"
+                        onChange={(e) =>
+                          setNewField({
+                            ...newField,
+                            derived: {
+                              ...newField.derived,
+                              computationType: e.target.value as DerivedField["computationType"],
+                              // Reset parent fields when computation type changes
+                              parentFields: [],
+                            },
+                          })
+                        }
+                      >
+                        <MenuItem value="age">Age from Date of Birth</MenuItem>
+                        <MenuItem value="sum">Sum of Numbers</MenuItem>
+                        <MenuItem value="concat">Concatenate Text</MenuItem>
+                        <MenuItem value="custom">Custom Formula</MenuItem>
+                      </Select>
+                    </FormControl>
+
+                    <Box>
+                      <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                        Parent Fields
+                        {newField.derived.computationType === "age" && (
+                          <Typography variant="caption" sx={{ display: "block", color: "text.secondary" }}>
+                            Select a date field to calculate age from
+                          </Typography>
+                        )}
+                      </Typography>
+                      {getAvailableParentFields().length > 0 ? (
+                        <FormGroup>
+                          {getAvailableParentFields().map((field) => (
+                            <FormControlLabel
+                              key={field.id}
+                              control={
+                                <Checkbox
+                                  size="small"
+                                  checked={newField.derived.parentFields.includes(field.id)}
+                                  onChange={() => toggleParentField(field.id)}
+                                  disabled={
+                                    newField.derived.computationType === "age" &&
+                                    newField.derived.parentFields.length > 0 &&
+                                    !newField.derived.parentFields.includes(field.id)
+                                  }
+                                />
+                              }
+                              label={`${field.label || `${field.type} field`} ${field.type === "date" ? "(Date)" : ""}`}
+                            />
+                          ))}
+                        </FormGroup>
+                      ) : (
+                        <Typography variant="body2" color="text.secondary">
+                          {newField.derived.computationType === "age"
+                            ? "No date fields available. Add a date field first to calculate age."
+                            : "No fields available. Add some fields first to use as parents."}
+                        </Typography>
+                      )}
+                    </Box>
+
+                    {newField.derived.computationType !== "age" && (
+                      <TextField
+                        label="Formula/Logic"
+                        fullWidth
+                        multiline
+                        rows={3}
+                        value={newField.derived.formula}
+                        onChange={(e) =>
+                          setNewField({
+                            ...newField,
+                            derived: { ...newField.derived, formula: e.target.value },
+                          })
+                        }
+                        placeholder={getFormulaPlaceholder()}
+                        helperText="Use parentField1, parentField2, etc. to reference selected parent fields"
+                      />
+                    )}
+
+                    {newField.derived.computationType === "age" && (
+                      <Box sx={{ p: 2, bgcolor: "info.light", borderRadius: 1 }}>
+                        <Typography variant="body2" sx={{ color: "info.contrastText" }}>
+                          <strong>Age Calculation:</strong> This field will automatically calculate the age based on the
+                          selected date of birth field. The age will update in real-time as users enter their birth
+                          date.
+                        </Typography>
+                      </Box>
+                    )}
+                  </>
+                )}
+              </Stack>
+            </Box>
+          )}
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
           <Button onClick={() => setOpen(false)}>Cancel</Button>
@@ -449,12 +766,7 @@ export default function Create() {
         </DialogActions>
       </Dialog>
 
-      <Dialog
-        open={formNameDialog}
-        onClose={() => setFormNameDialog(false)}
-        maxWidth="sm"
-        fullWidth
-      >
+      <Dialog open={formNameDialog} onClose={() => setFormNameDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle>
           <Typography variant="h6" fontWeight={600}>
             Save Form
@@ -479,5 +791,5 @@ export default function Create() {
         </DialogActions>
       </Dialog>
     </Box>
-  );
+  )
 }

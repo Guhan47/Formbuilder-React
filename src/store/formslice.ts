@@ -1,73 +1,86 @@
-import { createSlice } from "@reduxjs/toolkit";
-import type { PayloadAction } from "@reduxjs/toolkit";
+import { createSlice, type PayloadAction } from "@reduxjs/toolkit"
 
-
-export type FieldType = 'text' | 'number' | 'textarea' | 'select' | 'radio' | 'checkbox' | 'date';
-
-export interface Field {
-  id: string;
-  type: FieldType;
-  label: string;
-  required: boolean;
-  defaultValue?: string;
-  options?: string[]; 
-  validations?: {
-    minLength?: number;
-    maxLength?: number;
-    email?: boolean;
-    passwordRule?: boolean;
-  };
-  derived?: {
-    parents: string[];
-    formula: string; 
-  };
+interface ValidationRule {
+  id: string
+  type: "required" | "minLength" | "maxLength" | "email" | "password" | "custom"
+  value?: string | number
+  message?: string
 }
 
-export interface FormSchema {
-  name: string;
-  createdAt: string;
-  fields: Field[];
+interface DerivedField {
+  enabled: boolean
+  parentFields: string[]
+  formula: string
+  computationType: "age" | "sum" | "concat" | "custom"
+}
+
+interface Field {
+  id: string
+  type: string
+  label: string
+  required: boolean
+  defaultValue: string
+  validations: ValidationRule[]
+  options: string[]
+  derived: DerivedField
 }
 
 interface FormState {
-  currentForm: FormSchema;
-  savedForms: FormSchema[];
+  currentForm: {
+    fields: Field[]
+    name: string
+  }
+  savedForms: Array<{
+    id: string
+    name: string
+    fields: Field[]
+    createdAt: string
+  }>
 }
 
 const initialState: FormState = {
-  currentForm: { name: '', createdAt: '', fields: [] },
-  savedForms: JSON.parse(localStorage.getItem('forms') || '[]'),
-};
+  currentForm: {
+    fields: [],
+    name: "",
+  },
+  savedForms: [],
+}
 
 const formSlice = createSlice({
-  name: 'form',
+  name: "form",
   initialState,
   reducers: {
     addField: (state, action: PayloadAction<Field>) => {
-      state.currentForm.fields.push(action.payload);
-    },
-    updateField: (state, action: PayloadAction<Field>) => {
-      const index = state.currentForm.fields.findIndex(f => f.id === action.payload.id);
-      if (index !== -1) state.currentForm.fields[index] = action.payload;
+      state.currentForm.fields.push(action.payload)
     },
     deleteField: (state, action: PayloadAction<string>) => {
-      state.currentForm.fields = state.currentForm.fields.filter(f => f.id !== action.payload);
-    },
-    reorderFields: (state, action: PayloadAction<Field[]>) => {
-      state.currentForm.fields = action.payload;
+      state.currentForm.fields = state.currentForm.fields.filter((field) => field.id !== action.payload)
     },
     saveForm: (state, action: PayloadAction<string>) => {
       const newForm = {
-        ...state.currentForm,
+        id: Date.now().toString(),
         name: action.payload,
+        fields: [...state.currentForm.fields],
         createdAt: new Date().toISOString(),
-      };
-      state.savedForms.push(newForm);
-      localStorage.setItem('forms', JSON.stringify(state.savedForms));
-      state.currentForm = { name: '', createdAt: '', fields: [] };
-    }
-  }
-});
+      }
+      state.savedForms.push(newForm)
+      state.currentForm.name = action.payload
+    },
+    clearCurrentForm: (state) => {
+      state.currentForm = {
+        fields: [],
+        name: "",
+      }
+    },
+    reorderFields: (state, action: PayloadAction<Field[]>) => {
+      state.currentForm.fields = action.payload
+    },
+    loadForm: (state, action: PayloadAction<{ name: string; fields: Field[] }>) => {
+      state.currentForm.name = action.payload.name
+      state.currentForm.fields = action.payload.fields
+    },
+  },
+})
 
-export const { addField, updateField, deleteField, reorderFields, saveForm } = formSlice.actions;
-export default formSlice.reducer;
+export const { addField, deleteField, saveForm, clearCurrentForm, reorderFields, loadForm } = formSlice.actions
+export default formSlice.reducer
